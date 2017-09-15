@@ -136,8 +136,14 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         foreach ($this->coursefields as $field) {
             if (isset($data[$field])) {
                 switch ($field) {
+                    case 'enddate':
+                        if (strtotime($data['enddate']) < strtotime($data['startdate'])) {
+                            break;
+                        } else {
+                            $course[$field] = $data[$field];
+                            break;
+                        }
                     case 'groupmode':
-                        $course[$field] = 0;
                         break;
                     default:
                         $course[$field] = $data[$field];
