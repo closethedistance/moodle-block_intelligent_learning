@@ -135,7 +135,14 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         $course = array();
         foreach ($this->coursefields as $field) {
             if (isset($data[$field])) {
-                $course[$field] = $data[$field];
+                switch ($field) {
+                    case 'groupmode':
+                        $course[$field] = 0;
+                        break;
+                    default:
+                        $course[$field] = $data[$field];
+                        break;
+                }
             }
         }
         $course   = (object) $course;
@@ -240,6 +247,7 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             if ($key != 'id' and isset($course->$key) and $course->$key != $value) {
                 switch ($key) {
                     case 'idnumber':
+                    case 'groupmode':
                     case 'shortname':
                         $record->$key = substr($value, 0, 100);
                         break;
