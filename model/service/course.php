@@ -62,6 +62,7 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         'format',
         'showgrades',
         'startdate',
+        'enddate',
         'numsections',
         'visible',
         'groupmode',
@@ -140,6 +141,7 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         $course   = (object) $course;
         $defaults = array(
             'startdate'      => time() + 3600 * 24,
+            'enddate'        => time() + 3600 * 24 * 7 * 14,
             'summary'        => get_string('defaultcoursesummary'),
             'format'         => 'weeks',
             'guest'          => 0,
