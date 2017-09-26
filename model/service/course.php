@@ -138,6 +138,7 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
                 switch ($field) {
                     case 'enddate':
                         if (strtotime($data['enddate']) < strtotime($data['startdate'])) {
+                            $course[$field] = 0;
                             break;
                         } else {
                             $course[$field] = $data[$field];
