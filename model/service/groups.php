@@ -113,6 +113,7 @@ class blocks_intelligent_learning_model_service_groups extends blocks_intelligen
             throw new Exception('Passed course doesn\'t exist: '.$data->course);
         }
         $data->courseid = $course->id;
+        $data->idnumber = $course->idnumber;
         unset($data->course);
 
         if (property_exists($data, 'hidepicture') and is_null($data->hidepicture)) {
