@@ -137,8 +137,16 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             if (isset($data[$field])) {
                 switch ($field) {
                     case 'enddate':
-                        if (strtotime($data['enddate']) < strtotime($data['startdate'])) {
-                            $course[$field] = 0;
+                        if (strtotime($data['enddate']) < 0) {
+                            $summary_dates_exist=preg_match_all('/(\d{2}\/\d{2}\/\d{4})/',$data['summary'],$summary_dates);
+                            if($summary_dates_exist) {
+                                if($summary_dates[0][1]) {
+                                    $unix_enddate=strtotime($summary_dates[0][1]);
+                                    $course[$field] = date('Y-m-d H:i:s', $unix_enddate);
+                                }
+                            } else {
+                                $course[$field] = null;
+                            }
                             break;
                         } else {
                             $course[$field] = $data[$field];
