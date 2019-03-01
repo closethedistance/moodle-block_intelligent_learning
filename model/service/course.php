@@ -67,6 +67,8 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         'visible',
         'groupmode',
         'groupmodeforce',
+        'enddate',
+        'automaticenddate',
     );
 
     /**
@@ -144,19 +146,20 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             'summary'        => get_string('defaultcoursesummary'),
             'format'         => 'weeks',
             'guest'          => 0,
-            'numsections'    => 10,
+            'numsections'	 => 10,
             'idnumber'       => '',
             'newsitems'      => 5,
             'showgrades'     => 1,
             'groupmode'      => 0,
             'groupmodeforce' => 0,
             'visible'        => 1,
+            'automaticenddate'	=> 1,
         );
 
         $courseconfigs = get_config('moodlecourse');
         if (!empty($courseconfigs)) {
             foreach ($courseconfigs as $name => $value) {
-                $defaults[$name] = $value;
+				$defaults[$name] = $value;
             }
         }
 
@@ -165,6 +168,11 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             if (!isset($course->$key) or (!is_numeric($course->$key) and empty($course->$key))) {
                 $course->$key = $value;
             }
+        }
+        
+        // If data contains a valid end date then disable the Automatic End Date setting
+        if (isset($course->enddate) and is_numeric($course->enddate) and $course->enddate > 0) {
+        	$course->automaticenddate = 0;
         }
 
         // Last adjustments.
@@ -178,17 +186,20 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         if (isset($course->idnumber)) {
             $course->idnumber = substr($course->idnumber, 0, 100);
         }
-
-        try {
-            $courseid = $DB->insert_record('course', $course);
-        } catch (dml_exception $e) {
-            throw new Exception("Could not create new course idnumber = $course->idnumber");
-        }
+		
+		//call the library function to create the course since that will take care of creating the sections
+		$createdCourse = create_course($course);
+		$courseid = $createdCourse->id;
 
         // Check if this is a metacourse.
         if (isset($data["children"])) {
             $children = $data["children"];
-            $this->process_metacourse($course, $children);
+            $metacourse = $this->process_metacourse($course, $children);
+            
+            //if parent course is assigned a valid end date, turn off auto end date setting
+            if (!is_null($metacourse) and property_exists($metacourse, 'automaticenddate')) {
+            	$course->automaticenddate = $metacourse->automaticenddate;
+            }
         }
 
         // Save course format options.
@@ -236,10 +247,9 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             if (!in_array($key, $this->coursefields)) {
                 continue;
             }
-            if ($key != 'id' and isset($course->$key) and $course->$key != $value) {
+            if ($key != 'id' and $key != 'visible' and isset($course->$key) and $course->$key != $value) {
                 switch ($key) {
                     case 'idnumber':
-                    case 'groupmode':
                     case 'shortname':
                         $record->$key = substr($value, 0, 100);
                         break;
@@ -297,9 +307,15 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
 
             $parentid = $depth = 0;
             foreach ($categories as $catname) {  // Meow!
+            	if (empty($catname))
+            		continue;
+            		
                 $depth++;
 
-                if ($category = $DB->get_record('course_categories', array('name' => $catname, 'parent' => $parentid))) {
+                //if ($category = $DB->get_record('course_categories', array('name' => $catname, 'parent' => $parentid))) {
+                //    $parentid = $category->id;
+                if ($coursecategories = $DB->get_records('course_categories', array('name' => $catname, 'parent' => $parentid))) {
+                	$category = array_shift($coursecategories);
                     $parentid = $category->id;
                 } else {
                     $category = new stdClass();
@@ -343,12 +359,15 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
      */
     protected function process_metacourse($course, $children) {
         global $CFG, $DB;
+        $metacourse = null;
         try {
             if (isset($children)) {
                 $parentfullname = "";
                 $parentcategory = "";
                 $parentshortname = "";
                 $parentstartdate = time();
+                $parentenddate = strtotime('1970-01-01');
+                $parentautomaticenddate = 1;
 
                 $childids = explode(',', $children);
                 $enrol      = enrol_get_plugin('meta');
@@ -368,6 +387,16 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
                         $parentstartdate = min(array($parentstartdate, $child->startdate));
                         $parentcategory = $child->category;
                         $parentshortname .= ", " . $child->shortname;
+                        //Add latest child course end date to parent, if end date exists 
+                        if (property_exists($child, 'enddate')) {
+                        	$parentenddate = max(array($parentenddate, $child->enddate));
+                        	
+                        	//if auto end date setting not turned off already and start/end dates don't match
+                        	//then turn setting off
+			            	if ($parentautomaticenddate == 1 and (($child->enddate - $child->startdate) > (24*60*60))) {
+			            		$parentautomaticenddate = 0; 
+			            	}
+                        }
 
                         // Only add if not a duplicate.
                         if (!isset($existingchild->id)) {
@@ -402,6 +431,10 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
                     if ($metacourse->category == $CFG->defaultrequestcategory) {
                         $metacourse->category = $parentcategory;
                     }
+        			if (property_exists($metacourse, 'enddate')) {
+                    	$metacourse->enddate = $parentenddate;
+                    	$metacourse->automaticenddate = $parentautomaticenddate;
+                    }
                     $DB->update_record('course', $metacourse);
                 }
             }
@@ -410,6 +443,8 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
             debugging($errormessage);
             throw new Exception($errormessage);
         }
+        
+        return $metacourse;
 
     }
 }
