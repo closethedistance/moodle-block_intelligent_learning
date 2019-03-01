@@ -45,6 +45,7 @@ require_once("$CFG->dirroot/enrol/meta/locallib.php");
  *
  * @author Mark Nielsen
  * @author Sam Chaffee
+ * @author Ellucian
  * @package block_intelligent_learning
  */
 class blocks_intelligent_learning_model_service_course extends blocks_intelligent_learning_model_service_abstract {
@@ -62,7 +63,6 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         'format',
         'showgrades',
         'startdate',
-        'enddate',
         'numsections',
         'visible',
         'groupmode',
@@ -135,26 +135,12 @@ class blocks_intelligent_learning_model_service_course extends blocks_intelligen
         $course = array();
         foreach ($this->coursefields as $field) {
             if (isset($data[$field])) {
-                switch ($field) {
-                    case 'enddate':
-                        if (strtotime($data['enddate']) < strtotime($data['startdate'])) {
-                            break;
-                        } else {
-                            $course[$field] = $data[$field];
-                            break;
-                        }
-                    case 'groupmode':
-                        break;
-                    default:
-                        $course[$field] = $data[$field];
-                        break;
-                }
+                $course[$field] = $data[$field];
             }
         }
         $course   = (object) $course;
         $defaults = array(
             'startdate'      => time() + 3600 * 24,
-            'enddate'        => time() + 3600 * 24 * 7 * 14,
             'summary'        => get_string('defaultcoursesummary'),
             'format'         => 'weeks',
             'guest'          => 0,
