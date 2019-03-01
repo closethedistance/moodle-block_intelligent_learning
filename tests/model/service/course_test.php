@@ -15,18 +15,17 @@ class blocks_intelligent_learning_model_service_course_test extends advanced_tes
         global $DB;
 
         $data = array(
-            'shortname'      => 'testphpunit',
-            'category'       => 'testphpunit|testphpunit2',
-            'fullname'       => 'testphpunitfullname',
-            'idnumber'       => 'testphpunitidnumber',
-            'summary'        => 'testphpunitsummary',
-            'format'         => 'weeks',
-            'showgrades'     => '1',
-            'startdate'      => time() - (5 * DAYSECS),
-            'numsections'    => '7',
-            'visible'        => '1',
-            'groupmode'      => '0',
-            'groupmodeforce' => '0',
+            'shortname'			=> 'testphpunit',
+            'category'			=> 'testphpunit|testphpunit2',
+            'fullname'			=> 'testphpunitfullname',
+            'idnumber'			=> 'testphpunitidnumber',
+            'summary'			=> 'testphpunitsummary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
         );
 
         $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
@@ -49,6 +48,7 @@ class blocks_intelligent_learning_model_service_course_test extends advanced_tes
                 $this->assertEquals($value, $course->$name);
             }
         }
+        $this->assertTrue($DB->record_exists('course_sections', array('course' => $course->id)));
     }
 
     public function test_update() {
@@ -65,7 +65,7 @@ class blocks_intelligent_learning_model_service_course_test extends advanced_tes
 
         $data = array(
             'summary' => 'blocks_intelligent_phpunittest',
-            'numsections' => 20,
+            'showgrades' => '0'
         );
 
         $reflection->invoke($service, $course, $data);
@@ -78,29 +78,144 @@ class blocks_intelligent_learning_model_service_course_test extends advanced_tes
         }
     }
 
-    public function test_update_numsections_omitted() {
-        $course = $this->getDataGenerator()->create_course(array('numsections' => 20));
+    public function test_add_enddate() {
+        global $DB;
+        $enddate = time();
+
+        $data = array(
+            'shortname'			=> 'testphpunit',
+            'category'			=> 'testphpunit|testphpunit2',
+            'fullname'			=> 'testphpunitfullname',
+            'idnumber'			=> 'testphpunitidnumber',
+            'summary'			=> 'testphpunitsummary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+            'enddate'			=> $enddate,
+        );
 
         $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
         $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
 
         $service = new blocks_intelligent_learning_model_service_course($server, $response);
 
-        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'update');
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'add');
         $reflection->setAccessible(true);
 
-        $data = array(
-            'summary' => 'blocks_intelligent_phpunittest',
-        );
-
-        $reflection->invoke($service, $course, $data);
-
-        $updatedcourse = course_get_format($course->id)->get_course();
-        $this->assertEquals(20, $updatedcourse->numsections);
+        $course = $reflection->invoke($service, $data);
+        
+        if (property_exists($course, 'enddate')) {
+        	$this->assertEquals($enddate, $course->enddate);
+        }
+        
+        if (property_exists($course, 'automaticenddate')) {
+        	$this->assertEquals('0', $course->automaticenddate);
+        }
     }
 
-    public function test_update_numsections_only() {
-        $course = $this->getDataGenerator()->create_course(array('numsections' => 10));
+    public function test_add_invalidenddate() {
+        global $DB;
+        $enddate = strtotime('0001-01-01');
+
+        $data = array(
+            'shortname'			=> 'testphpunit',
+            'category'			=> 'testphpunit|testphpunit2',
+            'fullname'			=> 'testphpunitfullname',
+            'idnumber'			=> 'testphpunitidnumber',
+            'summary'			=> 'testphpunitsummary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+            'enddate'			=> $enddate,
+        );
+
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'add');
+        $reflection->setAccessible(true);
+
+        $course = $reflection->invoke($service, $data);
+        
+        if (property_exists($course, 'automaticenddate')) {
+        	$this->assertEquals('1', $course->automaticenddate);
+        }
+    }
+
+    public function test_ignore_empty_subcategory() {
+        global $DB;
+
+        $data = array(
+            'shortname'			=> 'testphpunit',
+            'category'			=> 'testphpunit||',
+            'fullname'			=> 'testphpunitfullname',
+            'idnumber'			=> 'testphpunitidnumber',
+            'summary'			=> 'testphpunitsummary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+        );
+
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'add');
+        $reflection->setAccessible(true);
+
+        $course = $reflection->invoke($service, $data);
+
+        $this->assertTrue(property_exists($course, 'category'));
+		$categoryid = $DB->get_field('course_categories', 'id', array('name' => 'testphpunit'), MUST_EXIST);
+		$this->assertEquals($categoryid, $course->category);
+    }
+
+    public function test_add_default_category() {
+        global $DB;
+		global $CFG;
+
+		/* No category information sent */
+        $data = array(
+            'shortname'			=> 'testphpunit',
+            'fullname'			=> 'testphpunitfullname',
+            'idnumber'			=> 'testphpunitidnumber',
+            'summary'			=> 'testphpunitsummary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+        );
+
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'add');
+        $reflection->setAccessible(true);
+
+        $course = $reflection->invoke($service, $data);
+
+        $this->assertTrue(property_exists($course, 'category'));
+		$this->assertEquals($CFG->defaultrequestcategory, $course->category);
+    }
+
+    public function test_update_showgrades_omitted() {
+        $course = $this->getDataGenerator()->create_course(array('showgrades' => '0'));
 
         $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
         $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
@@ -111,13 +226,120 @@ class blocks_intelligent_learning_model_service_course_test extends advanced_tes
         $reflection->setAccessible(true);
 
         $data = array(
-            'numsections' => '20',
+            'summary' => 'blocks_intelligent_phpunittest'
         );
 
         $reflection->invoke($service, $course, $data);
 
         $updatedcourse = course_get_format($course->id)->get_course();
-        $this->assertEquals(20, $updatedcourse->numsections);
+        $this->assertEquals('0', $updatedcourse->showgrades);
+    }
+
+    public function test_update_showgrades_only() {
+        $course = $this->getDataGenerator()->create_course(array('showgrades' => '1'));
+
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'update');
+        $reflection->setAccessible(true);
+
+        $data = array(
+            'showgrades' => '0',
+        );
+
+        $reflection->invoke($service, $course, $data);
+
+        $updatedcourse = course_get_format($course->id)->get_course();
+        $this->assertEquals('0', $updatedcourse->showgrades);
+    }
+
+    public function test_update_ignore_visible() {
+        $course = $this->getDataGenerator()->create_course(array('visible' => '0'));
+
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'update');
+        $reflection->setAccessible(true);
+
+        $data = array(
+            'visible' => '1',
+        );
+
+        $reflection->invoke($service, $course, $data);
+
+        $updatedcourse = course_get_format($course->id)->get_course();
+        $this->assertEquals('0', $updatedcourse->visible);
+    }
+
+    public function test_add_metacourse() {
+        global $DB;
+        $enddate = time();
+
+        $course1data = array(
+            'shortname'			=> 'testphpunit1',
+            'fullname'			=> 'testphpunit1fullname',
+            'idnumber'			=> 'testphpunit1idnumber',
+            'summary'			=> 'testphpunit1summary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (5 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+            'enddate'			=> time() - (2 * DAYSECS),
+        );
+
+        $course2data = array(
+            'shortname'			=> 'testphpunit2',
+            'fullname'			=> 'testphpunit2fullname',
+            'idnumber'			=> 'testphpunit2idnumber',
+            'summary'			=> 'testphpunit2summary',
+            'format'			=> 'weeks',
+            'showgrades'		=> '1',
+            'startdate'			=> time() - (7 * DAYSECS),
+            'visible'			=> '1',
+            'groupmode'			=> '0',
+            'groupmodeforce'	=> '0',
+            'enddate'			=> $enddate,
+        );
+
+        $metacoursedata = array(
+            'shortname'			=> 'testphpunitparent',
+            'fullname'			=> 'testphpunitparent',
+            'idnumber'			=> 'testphpunitparent',
+            'enrollable'		=> '1',
+            'visible'			=> '1',
+            'children'			=> 'testphpunit1idnumber,testphpunit2idnumber',
+        );
+
+        $course1 = $this->getDataGenerator()->create_course($course1data);
+        $course2 = $this->getDataGenerator()->create_course($course2data);
+        $server   = $this->getMockForAbstractClass('mr_server_abstract', array(), '', false);
+        $response = $this->getMockForAbstractClass('mr_server_response_abstract', array(), '', false);
+
+        $service = new blocks_intelligent_learning_model_service_course($server, $response);
+
+        $reflection = new ReflectionMethod('blocks_intelligent_learning_model_service_course', 'add');
+        $reflection->setAccessible(true);
+
+        $metacourse = $reflection->invoke($service, $metacoursedata);
+        
+        //Assertions
+        $this->assertEquals($metacoursedata['idnumber'], $metacourse->idnumber);
+        $this->assertEquals('testphpunit1, testphpunit2', $metacourse->shortname);
+        $this->assertEquals('testphpunit1fullname, testphpunit2fullname', $metacourse->fullname);
+        $this->assertEquals($course1->category, $metacourse->category);
+        $this->assertEquals($course2data['startdate'], $metacourse->startdate);
+        
+        if (property_exists($metacourse, 'enddate')) {
+        	$this->assertEquals($enddate, $metacourse->enddate);
+        }
     }
 
     public function test_handle_create() {
